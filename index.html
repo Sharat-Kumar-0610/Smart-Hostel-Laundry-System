@@ -1,0 +1,160 @@
+
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_sub %}Live overview of hostel laundry operations{% endblock %}
+
+{% block content %}
+
+<!-- ── Stat Cards ─────────────────────────────────────────────────────── -->
+<div class="stats-grid">
+
+  <div class="stat-card" style="--accent-c:#2563eb;--accent-bg:#eff6ff">
+    <div class="sc-top">
+      <div class="sc-icon" style="background:#dbeafe;color:#2563eb">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+      </div>
+      <div class="sc-trend">Total</div>
+    </div>
+    <div class="sc-value">{{ stats.students }}</div>
+    <div class="sc-label">Students</div>
+    <a href="{{ url_for('students') }}" class="sc-link">View all →</a>
+  </div>
+
+  <div class="stat-card" style="--accent-c:#16a34a;--accent-bg:#f0fdf4">
+    <div class="sc-top">
+      <div class="sc-icon" style="background:#dcfce7;color:#16a34a">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z"/><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+      </div>
+      <div class="sc-trend" style="color:#d97706">{{ stats.pending }} pending</div>
+    </div>
+    <div class="sc-value" style="color:#16a34a">{{ stats.orders }}</div>
+    <div class="sc-label">Orders</div>
+    <a href="{{ url_for('orders') }}" class="sc-link">View all →</a>
+  </div>
+
+  <div class="stat-card" style="--accent-c:#7c3aed;--accent-bg:#faf5ff">
+    <div class="sc-top">
+      <div class="sc-icon" style="background:#ede9fe;color:#7c3aed">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/><path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd"/></svg>
+      </div>
+      <div class="sc-trend" style="color:#16a34a">₹{{ stats.revenue }} collected</div>
+    </div>
+    <div class="sc-value" style="color:#7c3aed">{{ stats.payments }}</div>
+    <div class="sc-label">Payments</div>
+    <a href="{{ url_for('payments') }}" class="sc-link">View all →</a>
+  </div>
+
+  <div class="stat-card" style="--accent-c:#dc2626;--accent-bg:#fef2f2">
+    <div class="sc-top">
+      <div class="sc-icon" style="background:#fee2e2;color:#dc2626">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+      </div>
+      <div class="sc-trend">Complaints</div>
+    </div>
+    <div class="sc-value" style="color:#dc2626">{{ stats.complaints }}</div>
+    <div class="sc-label">Complaints</div>
+    <a href="{{ url_for('complaints') }}" class="sc-link">View all →</a>
+  </div>
+
+</div>
+
+<!-- ── Two-column lower section ──────────────────────────────────────── -->
+<div class="dash-lower">
+
+  <!-- Recent Orders -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Recent Orders</h2>
+      <a href="{{ url_for('orders') }}" class="btn btn-ghost btn-sm">View all →</a>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Order</th><th>Student</th><th>Date</th><th>Clothes</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in recent_orders %}
+          <tr>
+            <td class="mono dim">ORD-{{ o.OrderID }}</td>
+            <td><strong>{{ o.StudentName }}</strong></td>
+            <td class="dim">{{ o.OrderDate }}</td>
+            <td>{{ o.TotalClothes }} pcs</td>
+            <td><span class="badge badge-{{ o.OrderStatus | lower }}">{{ o.OrderStatus }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="empty-row">No orders yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent Complaints -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Recent Complaints</h2>
+      <a href="{{ url_for('complaints') }}" class="btn btn-ghost btn-sm">View all →</a>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>#</th><th>Student</th><th>Issue</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for c in recent_complaints %}
+          <tr>
+            <td class="mono dim">C-{{ c.ComplaintID }}</td>
+            <td><strong>{{ c.StudentName }}</strong></td>
+            <td class="dim truncate-cell">{{ c.ComplaintDescription }}</td>
+            <td><span class="badge badge-{{ c.Status | lower | replace(' ','-') }}">{{ c.Status }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="empty-row">No complaints logged.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Quick Nav ─────────────────────────────────────────────────────── -->
+<div class="quick-grid">
+  <a href="{{ url_for('students') }}" class="quick-card">
+    <div class="qc-icon" style="background:#eff6ff;color:#2563eb">👤</div>
+    <div class="qc-body">
+      <div class="qc-title">Students</div>
+      <div class="qc-sub">Register &amp; manage residents</div>
+    </div>
+    <span class="qc-arrow">→</span>
+  </a>
+  <a href="{{ url_for('orders') }}" class="quick-card">
+    <div class="qc-icon" style="background:#f0fdf4;color:#16a34a">📦</div>
+    <div class="qc-body">
+      <div class="qc-title">Orders</div>
+      <div class="qc-sub">Track laundry submissions</div>
+    </div>
+    <span class="qc-arrow">→</span>
+  </a>
+  <a href="{{ url_for('payments') }}" class="quick-card">
+    <div class="qc-icon" style="background:#faf5ff;color:#7c3aed">💳</div>
+    <div class="qc-body">
+      <div class="qc-title">Payments</div>
+      <div class="qc-sub">Billing &amp; transactions</div>
+    </div>
+    <span class="qc-arrow">→</span>
+  </a>
+  <a href="{{ url_for('complaints') }}" class="quick-card">
+    <div class="qc-icon" style="background:#fef2f2;color:#dc2626">🚨</div>
+    <div class="qc-body">
+      <div class="qc-title">Complaints</div>
+      <div class="qc-sub">Student grievance log</div>
+    </div>
+    <span class="qc-arrow">→</span>
+  </a>
+</div>
+
+{% endblock %}

@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% block title %}Payments{% endblock %}
+{% block page_title %}Payments{% endblock %}
+{% block page_sub %}Billing records and transaction history{% endblock %}
+
+{% block content %}
+
+{% set paid_total = namespace(v=0) %}
+{% set pending_total = namespace(v=0) %}
+{% for p in payments %}
+{% if p.PaymentStatus == 'Paid' %}{% set paid_total.v = paid_total.v + p.Amount %}{% endif %}
+{% if p.PaymentStatus == 'Pending' %}{% set pending_total.v = pending_total.v + p.Amount %}{% endif %}
+{% endfor %}
+
+<div class="stats-grid compact">
+  <div class="stat-card" style="--accent-c:#16a34a">
+    <div class="sc-top">
+      <div class="sc-icon" style="background:#dcfce7;color:#16a34a">✅</div>
+      <div class="sc-trend">Collected</div>
+    </div>
+    <div class="sc-value" style="color:#16a34a">₹{{ paid_total.v }}</div>
+    <div class="sc-label">Total Paid</div>
+  </div>
+  <div class="stat-card" style="--accent-c:#d97706">
+    <div class="sc-top">
+      <div class="sc-icon" style="background:#fef3c7;color:#d97706">⏳</div>
+      <div class="sc-trend">Outstanding</div>
+    </div>
+    <div class="sc-value" style="color:#d97706">₹{{ pending_total.v }}</div>
+    <div class="sc-label">Pending Amount</div>
+  </div>
+  <div class="stat-card" style="--accent-c:#2563eb">
+    <div class="sc-top">
+      <div class="sc-icon" style="background:#dbeafe;color:#2563eb">🔢</div>
+      <div class="sc-trend">Entries</div>
+    </div>
+    <div class="sc-value" style="color:#2563eb">{{ payments | length }}</div>
+    <div class="sc-label">Transactions</div>
+  </div>
+</div>
+
+<!-- Toast notification container -->
+<div id="pay-toast" style="
+  position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999;
+  display:none; align-items:center; gap:.6rem;
+  padding:.75rem 1.25rem; border-radius:.5rem;
+  font-size:.875rem; font-weight:500;
+  box-shadow:0 4px 12px rgba(0,0,0,.15);
+  transition:opacity .3s ease;
+"></div>
+
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">
+      Payment Records
+      <span class="count-chip" id="pay-count">{{ payments | length }}</span>
+    </h2>
+    <div class="toolbar">
+      <input type="text" class="search-box" placeholder="🔍  Search…" oninput="liveFilter('pay-tbody', this.value)" />
+      <select class="filter-select" onchange="filterPay(this.value)">
+        <option value="">All Statuses</option>
+        <option>Paid</option>
+        <option>Pending</option>
+        <option>Failed</option>
+      </select>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="alert-error"><span>⚠</span> {{ error }}</div>
+  {% endif %}
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Pay ID</th>
+          <th>Student</th>
+          <th>Order</th>
+          <th>Date</th>
+          <th>Amount (₹)</th>
+          <th>Mode</th>
+          <th>Status</th>
+          <th>Save</th>
+        </tr>
+      </thead>
+      <tbody id="pay-tbody">
+        {% if payments %}
+        {% for p in payments %}
+        <tr data-payment-id="{{ p.PaymentID }}" data-status="{{ p.PaymentStatus }}">
+          <td class="mono dim">PAY-{{ p.PaymentID }}</td>
+          <td><strong>{{ p.StudentName }}</strong></td>
+          <td class="mono dim">ORD-{{ p.OrderID }}</td>
+          <td class="dim">{{ p.PaymentDate }}</td>
+
+          
+          <td>
+            <input type="number" class="pay-amount-input" id="amt-{{ p.PaymentID }}" value="{{ p.Amount }}" min="0"
+              step="0.01" style="width:90px;padding:.3rem .5rem;border:1.5px solid var(--border,#e2e8f0);
+             border-radius:.375rem;font-size:.85rem;font-family:inherit;" />
+          </td>
+
+          
+          <td>
+            <select class="mode-select" id="mode-{{ p.PaymentID }}" style="padding:.28rem .5rem;border:1.5px solid var(--border,#e2e8f0);
+                   border-radius:.375rem;font-size:.82rem;font-family:inherit;cursor:pointer;">
+              {% for m in ['Cash','UPI','Card'] %}
+              <option value="{{ m }}" {% if p.PaymentMode==m %}selected{% endif %}>{{ m }}</option>
+              {% endfor %}
+            </select>
+          </td>
+
+          
+          <td>
+            <select class="status-select status-{{ p.PaymentStatus | lower }}" id="stat-{{ p.PaymentID }}"
+              data-payment-id="{{ p.PaymentID }}" onchange="applyStatusColour(this, this.value)">
+              <option value="Paid" {% if p.PaymentStatus=='Paid' %}selected{% endif %}>✅ Paid</option>
+              <option value="Pending" {% if p.PaymentStatus=='Pending' %}selected{% endif %}>⏳ Pending</option>
+              <option value="Failed" {% if p.PaymentStatus=='Failed' %}selected{% endif %}>❌ Failed</option>
+            </select>
+          </td>
+
+          
+          <td>
+            <button class="pay-save-btn" onclick="savePayment({{ p.PaymentID }})" style="padding:.28rem .75rem;border:none;border-radius:.375rem;cursor:pointer;
+             font-size:.8rem;font-weight:700;font-family:inherit;
+             background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;
+             box-shadow:0 1px 4px rgba(22,163,74,.3);transition:opacity .15s;">
+              💾 Save
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+        {% else %}
+        <tr>
+          <td colspan="7" class="empty-row">No payment records found.</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+  /* ── Status dropdown ── */
+  .status-select {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1.5px solid transparent;
+    border-radius: .375rem;
+    padding: .25rem .75rem .25rem .5rem;
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    transition: background .2s, color .2s, border-color .2s, box-shadow .2s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right .45rem center;
+    padding-right: 1.4rem;
+  }
+
+  .status-select:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, .2);
+  }
+
+  /* Colour variants — mirror your existing badge colours */
+  .status-select.status-paid {
+    background-color: #dcfce7;
+    color: #15803d;
+    border-color: #86efac;
+  }
+
+  .status-select.status-pending {
+    background-color: #fef3c7;
+    color: #b45309;
+    border-color: #fcd34d;
+  }
+
+  .status-select.status-failed {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+  }
+
+  /* Spinner overlay on the select while saving */
+  .status-select:disabled {
+    opacity: .6;
+    cursor: wait;
+  }
+</style>
+
+<script>
+  /* ── Update payment status via AJAX ───────────────────── */
+  async function updatePaymentStatus(selectEl) {
+    const paymentId = selectEl.dataset.paymentId;
+    const newStatus = selectEl.value;
+    const row = selectEl.closest("tr");
+
+    // Optimistic UI — apply colour immediately
+    applyStatusColour(selectEl, newStatus);
+
+    // Disable while request is in flight
+    selectEl.disabled = true;
+
+    try {
+      const res = await fetch("/api/payments/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payment_id: paymentId, status: newStatus }),
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        // Keep the row's data-status in sync (used by filterPay)
+        row.dataset.status = newStatus;
+        showToast("success", `PAY-${paymentId} → ${newStatus}`);
+      } else {
+        showToast("error", json.message || "Update failed.");
+        // Roll back — reload the page as a safe fallback
+        // (or store the previous value and revert the select)
+      }
+    } catch (_) {
+      showToast("error", "Network error. Please try again.");
+    } finally {
+      selectEl.disabled = false;
+    }
+  }
+
+  /* ── Apply colour class to the select ────────────────── */
+  function applyStatusColour(selectEl, status) {
+    selectEl.className = "status-select status-" + status.toLowerCase();
+  }
+
+  /* ── Toast helper ─────────────────────────────────────── */
+  function showToast(type, msg) {
+    const toast = document.getElementById("pay-toast");
+    const styles = {
+      success: { bg: "#dcfce7", color: "#15803d", icon: "✅" },
+      error: { bg: "#fee2e2", color: "#b91c1c", icon: "⚠️" },
+    };
+    const s = styles[type] || styles.error;
+    toast.style.background = s.bg;
+    toast.style.color = s.color;
+    toast.innerHTML = `${s.icon} ${msg}`;
+    toast.style.display = "flex";
+    toast.style.opacity = "1";
+
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+      toast.style.opacity = "0";
+      setTimeout(() => { toast.style.display = "none"; }, 300);
+    }, 3000);
+  }
+
+  /* ── Live search filter ───────────────────────────────── */
+  function liveFilter(tbodyId, q) {
+    q = q.toLowerCase();
+    let n = 0;
+    document.querySelectorAll(`#${tbodyId} tr`).forEach(r => {
+      const show = r.textContent.toLowerCase().includes(q);
+      r.style.display = show ? "" : "none";
+      if (show) n++;
+    });
+    const chip = document.getElementById("pay-count");
+    if (chip) chip.textContent = n;
+  }
+
+  /* ── Status filter (reads data-status kept in sync) ──── */
+  function filterPay(val) {
+    document.querySelectorAll("#pay-tbody tr").forEach(r => {
+      if (!val) { r.style.display = ""; return; }
+      r.style.display = (r.dataset.status === val) ? "" : "none";
+    });
+  }
+  /* ── Save editable payment row ────────────────────────── */
+async function savePayment(paymentId) {
+  const amtEl  = document.getElementById(`amt-${paymentId}`);
+  const modeEl = document.getElementById(`mode-${paymentId}`);
+  const statEl = document.getElementById(`stat-${paymentId}`);
+  const btn    = document.querySelector(`button[onclick="savePayment(${paymentId})"]`);
+
+  const amount = parseFloat(amtEl.value);
+  if (isNaN(amount) || amount < 0) {
+    showToast("error", "Amount must be a non-negative number.");
+    return;
+  }
+
+  // Disable row controls while saving
+  [amtEl, modeEl, statEl, btn].forEach(el => el.disabled = true);
+  btn.textContent = "⏳…";
+
+  try {
+    const res  = await fetch(`/api/payments/${paymentId}`, {
+      method:  "PUT",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({
+        amount: amount,
+        mode:   modeEl.value,
+        status: statEl.value,
+      }),
+    });
+    const json = await res.json();
+
+    if (json.success) {
+      // Keep data-status in sync for filter
+      const row = statEl.closest("tr");
+      if (row) row.dataset.status = statEl.value;
+      applyStatusColour(statEl, statEl.value);
+      showToast("success", `PAY-${paymentId} saved ✓`);
+    } else {
+      showToast("error", json.message || "Save failed.");
+    }
+  } catch (_) {
+    showToast("error", "Network error. Please try again.");
+  } finally {
+    [amtEl, modeEl, statEl, btn].forEach(el => el.disabled = false);
+    btn.textContent = "💾 Save";
+  }
+}
+</script>
+{% endblock %}

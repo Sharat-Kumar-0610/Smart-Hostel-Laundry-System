@@ -1,0 +1,229 @@
+
+{% extends "base.html" %}
+{% block title %}Students{% endblock %}
+{% block page_title %}Students{% endblock %}
+{% block page_sub %}Register and manage hostel residents{% endblock %}
+
+{% block content %}
+
+<div class="two-col-layout">
+
+    <!-- Student Table -->
+    <div class="card flex-2">
+        <div class="card-header">
+            <h2 class="card-title">All Students <span class="count-badge" id="student-count">{{ students|length }}</span></h2>
+            <div class="search-wrap">
+                <input type="text" id="search-input" placeholder="Search name, reg no…" class="search-input"
+                    oninput="filterTable(this.value)" />
+            </div>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-error">⚠ {{ error }}</div>
+        {% endif %}
+
+        <div class="table-wrap">
+            <table class="table" id="student-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Register No.</th>
+                        <th>Block</th>
+                        <th>Room</th>
+                        <th>Phone</th>
+                    </tr>
+                </thead>
+                <tbody id="student-tbody">
+                    {% if students %}
+                        {% for s in students %}
+                        <tr>
+                            <td class="mono">{{ s.StudentID }}</td>
+                            <td><strong>{{ s.Name }}</strong></td>
+                            <td class="mono">{{ s.RegisterNumber }}</td>
+                            <td><span class="block-chip">{{ s.HostelBlock }}</span></td>
+                            <td>{{ s.RoomNumber }}</td>
+                            <td>{{ s.PhoneNumber }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-row">No students found. Add one →</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add Student Form -->
+    <div class="card flex-1 form-card">
+
+        <div class="card-header">
+            <h2 class="card-title">Add Student</h2>
+        </div>
+
+        <!-- ★ padded form body -->
+        <div class="form-body">
+
+            <div id="form-msg"></div>
+
+            <form id="add-student-form" novalidate>
+
+                <div class="form-group">
+                    <label class="form-label">Student ID <span class="req">*</span></label>
+                    <input type="number" name="student_id" class="form-input"
+                        placeholder="Enter ID (e.g. 101)" required />
+                    <span class="field-error" id="err-id"></span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Full Name <span class="req">*</span></label>
+                    <input type="text" name="name" class="form-input"
+                        placeholder="e.g. Arjun Kumar" required />
+                    <span class="field-error" id="err-name"></span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Register Number <span class="req">*</span></label>
+                    <input type="text" name="register_number" class="form-input"
+                        placeholder="e.g. RA2211003" required />
+                    <span class="field-error" id="err-reg"></span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Hostel Block <span class="req">*</span></label>
+                    <select name="hostel_block" class="form-input" required>
+                        <option value="">— Select Block —</option>
+                        <option>Block A</option>
+                        <option>Block B</option>
+                        <option>Block C</option>
+                        <option>Block D</option>
+                        <option>Block E</option>
+                    </select>
+                    <span class="field-error" id="err-block"></span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Room Number <span class="req">*</span></label>
+                    <input type="text" name="room_number" class="form-input"
+                        placeholder="e.g. 204" required />
+                    <span class="field-error" id="err-room"></span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Phone Number <span class="req">*</span></label>
+                    <input type="tel" name="phone_number" class="form-input"
+                        placeholder="10-digit mobile" maxlength="10" required />
+                    <span class="field-error" id="err-phone"></span>
+                </div>
+
+                <div class="form-submit-wrap">
+                    <button type="submit" class="btn btn-primary w-full" id="submit-btn">
+                        <span id="btn-text">+ Add Student</span>
+                        <span id="btn-spinner" class="spinner hidden"></span>
+                    </button>
+                </div>
+
+            </form>
+        </div><!-- /.form-body -->
+
+    </div><!-- /.card -->
+
+</div><!-- /.two-col-layout -->
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+    // ── Client-side table filter
+    function filterTable(query) {
+        const q = query.toLowerCase();
+        const rows = document.querySelectorAll("#student-tbody tr");
+        let visible = 0;
+        rows.forEach(row => {
+            const match = row.textContent.toLowerCase().includes(q);
+            row.style.display = match ? "" : "none";
+            if (match) visible++;
+        });
+        document.getElementById("student-count").textContent = visible;
+    }
+
+    // ── AJAX form submit
+    document.getElementById("add-student-form").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        clearErrors();
+
+        const fd = new FormData(this);
+        const data = Object.fromEntries(fd.entries());
+
+        // Validate
+        let valid = true;
+        if (!data.student_id)                          { showErr("err-id",    "Student ID required");            valid = false; }
+        if (!data.name.trim())                         { showErr("err-name",  "Name is required");               valid = false; }
+        if (!data.register_number.trim())              { showErr("err-reg",   "Register number required");       valid = false; }
+        if (!data.hostel_block)                        { showErr("err-block", "Select a hostel block");          valid = false; }
+        if (!data.room_number.trim())                  { showErr("err-room",  "Room number required");           valid = false; }
+        if (!/^\d{10}$/.test(data.phone_number))      { showErr("err-phone", "Enter valid 10-digit phone");     valid = false; }
+        if (!valid) return;
+
+        setLoading(true);
+
+        try {
+            const res = await fetch("/api/students/add", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+            const json = await res.json();
+
+            if (json.success) {
+                showMsg("success", json.message);
+                this.reset();
+                await refreshTable();
+            } else {
+                showMsg("error", json.message);
+            }
+        } catch (err) {
+            showMsg("error", "Network error. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    });
+
+    async function refreshTable() {
+        const res = await fetch("/api/students");
+        const json = await res.json();
+        if (!json.success) return;
+
+        const tbody = document.getElementById("student-tbody");
+        tbody.innerHTML = "";
+        json.students.forEach(s => {
+            tbody.insertAdjacentHTML("beforeend", `
+                <tr class="row-new">
+                    <td class="mono">${s.StudentID}</td>
+                    <td><strong>${s.Name}</strong></td>
+                    <td class="mono">${s.RegisterNumber}</td>
+                    <td><span class="block-chip">${s.HostelBlock}</span></td>
+                    <td>${s.RoomNumber}</td>
+                    <td>${s.PhoneNumber}</td>
+                </tr>`);
+        });
+        document.getElementById("student-count").textContent = json.students.length;
+    }
+
+    function showErr(id, msg) { document.getElementById(id).textContent = msg; }
+    function clearErrors()    { document.querySelectorAll(".field-error").forEach(el => el.textContent = ""); }
+    function setLoading(on) {
+        document.getElementById("btn-text").classList.toggle("hidden", on);
+        document.getElementById("btn-spinner").classList.toggle("hidden", !on);
+        document.getElementById("submit-btn").disabled = on;
+    }
+    function showMsg(type, msg) {
+        const el = document.getElementById("form-msg");
+        el.innerHTML = `<div class="alert alert-${type}">${type === "success" ? "✓" : "✕"} ${msg}</div>`;
+        setTimeout(() => el.innerHTML = "", 4000);
+    }
+</script>
+{% endblock %}

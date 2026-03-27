@@ -1,0 +1,937 @@
+{% extends "base.html" %}
+{% block title %}Orders{% endblock %}
+{% block page_title %}Laundry Orders{% endblock %}
+{% block page_sub %}All orders with clothing type & fabric classification{% endblock %}
+
+{% block content %}
+
+{# ── Status summary ribbon ────────────────────────────────────────────────── #}
+<div class="status-ribbon">
+  {% for st, icon, col in [
+  ('Pending', '⏳', '#d97706'),
+  ('Processing', '🔄', '#2563eb'),
+  ('Completed', '✅', '#16a34a'),
+  ('Delivered', '📦', '#64748b')
+  ] %}
+  <div class="sr-pill">
+    <span class="sr-icon">{{ icon }}</span>
+    <div>
+      <div class="sr-count" style="color:{{ col }}" id="pill-{{ st | lower }}">
+        {{ orders | selectattr('OrderStatus','equalto',st) | list | length }}
+      </div>
+      <div class="sr-label">{{ st }}</div>
+    </div>
+  </div>
+  {% endfor %}
+  <div class="sr-pill sr-pill-total">
+    <span class="sr-icon">📋</span>
+    <div>
+      <div class="sr-count" id="pill-total">{{ orders | length }}</div>
+      <div class="sr-label">Total Rows</div>
+    </div>
+  </div>
+</div>
+
+{# ══════════════════════════════════════════════════════
+CREATE ORDER FORM CARD
+══════════════════════════════════════════════════════ #}
+<div class="card of-form-card">
+  <div class="card-header" style="border-bottom:1px solid var(--border,#e2e8f0);
+                                   padding-bottom:.9rem;margin-bottom:1.1rem">
+    <h2 class="card-title" style="display:flex;align-items:center;gap:.5rem">
+      <span class="of-hd-icon">＋</span> Create New Order
+    </h2>
+    <button class="of-toggle-btn" id="of-toggle-btn" onclick="toggleOrderForm()">
+      <span id="of-toggle-label">Hide Form</span>
+    </button>
+  </div>
+
+  <div id="of-form-wrap" style="padding: 15px;">
+    <div id="of-form-msg"></div>
+
+    {# ── Top grid: now 2 rows ── #}
+    <div class="of-grid">
+
+      <div class="of-field">
+        <label class="of-label" for="of-student">
+          <span class="of-icon">👤</span> Student <span class="of-req">*</span>
+        </label>
+        <div class="of-select-wrap">
+          <select class="of-input" id="of-student">
+            <option value="">— select student —</option>
+          </select>
+        </div>
+        <div class="field-error" id="err-of-student"></div>
+      </div>
+
+      <div class="of-field">
+        <label class="of-label" for="of-staff">
+          <span class="of-icon">🧑‍💼</span> Shift <span class="of-req">*</span>
+        </label>
+        <div class="of-select-wrap">
+          <select class="of-input" id="of-staff">
+            <option value="">— select shift —</option>
+            <option value="1">Morning</option>
+            <option value="2">Evening</option>
+            <option value="3">Night</option>
+          </select>
+        </div>
+        <div class="field-error" id="err-of-staff"></div>
+      </div>
+
+      <div class="of-field">
+        <label class="of-label" for="of-clothes">
+          <span class="of-icon">👕</span> Total Clothes <span class="of-req">*</span>
+        </label>
+        <input type="number" class="of-input" id="of-clothes" min="1" max="999" placeholder="e.g. 10"
+          oninput="clearErr('err-of-clothes')">
+        <div class="field-error" id="err-of-clothes"></div>
+      </div>
+
+      <div class="of-field">
+        <label class="of-label" for="of-status">
+          <span class="of-icon">🏷️</span> Order Status
+        </label>
+        <div class="of-select-wrap">
+          <select class="of-input" id="of-status">
+            <option value="Pending" selected>⏳ Pending</option>
+            <option value="Processing">🔄 Processing</option>
+            <option value="Completed">✅ Completed</option>
+            <option value="Delivered">📦 Delivered</option>
+          </select>
+        </div>
+      </div>
+
+      {# ── NEW FIELDS: Row 2 ── #}
+
+      <div class="of-field">
+        <label class="of-label" for="of-cloth-type">
+          <span class="of-icon">🧥</span> Cloth Type <span class="of-req">*</span>
+        </label>
+        <div class="of-select-wrap">
+          <select class="of-input" id="of-cloth-type" onchange="clearErr('err-of-cloth-type')">
+            <option value="">— select type —</option>
+            <option value="Shirt">Shirt</option>
+            <option value="T-shirt">T-shirt</option>
+            <option value="Pants">Pants</option>
+            <option value="Jacket">Jacket</option>
+            <option value="Sweater">Sweater</option>
+            <option value="Scarf">Scarf</option>
+          </select>
+        </div>
+        <div class="field-error" id="err-of-cloth-type"></div>
+      </div>
+
+      <div class="of-field">
+        <label class="of-label" for="of-color">
+          <span class="of-icon">🎨</span> Color
+        </label>
+        <div class="of-select-wrap">
+          <select class="of-input" id="of-color">
+            <option value="">— select color —</option>
+            <option value="White">White</option>
+            <option value="Black">Black</option>
+            <option value="Blue">Blue</option>
+            <option value="Red">Red</option>
+            <option value="Green">Green</option>
+            <option value="Yellow">Yellow</option>
+            <option value="Grey">Grey</option>
+            <option value="Brown">Brown</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="of-field">
+        <label class="of-label" for="of-fabric">
+          <span class="of-icon">🧵</span> Fabric Type <span class="of-req">*</span>
+        </label>
+        <div class="of-select-wrap">
+          <select class="of-input" id="of-fabric" onchange="clearErr('err-of-fabric')">
+            <option value="">— select fabric —</option>
+            <option value="Regular">Regular</option>
+            <option value="Delicate">Delicate</option>
+          </select>
+        </div>
+        <div class="field-error" id="err-of-fabric"></div>
+      </div>
+
+      {# Empty 4th cell to keep grid balanced #}
+      <div class="of-field"></div>
+
+    </div>{# /of-grid #}
+
+    {# ── Order date — read-only auto-filled ── #}
+    <div class="of-field of-date-row">
+      <label class="of-label">
+        <span class="of-icon">📅</span> Order Date
+      </label>
+      <input type="text" class="of-input of-readonly" id="of-date" readonly>
+    </div>
+
+    <!-- {# ── Order date — read-only auto-filled ── #}
+    <div class="of-field of-date-row">
+      <label class="of-label">
+        <span class="of-icon">📅</span> Order Date
+      </label>
+      <input type="text" class="of-input of-readonly" id="of-date" readonly>
+    </div> -->
+
+    <div class="of-actions">
+      <button class="of-btn-submit" id="of-submit-btn" onclick="submitOrder()">
+        <span id="of-btn-text">🚀 Create Order</span>
+        <span id="of-btn-spinner" class="hidden">⏳ Saving…</span>
+      </button>
+      <button class="of-btn-clear" onclick="resetOrderForm()">✕ Clear</button>
+    </div>
+  </div>{# /of-form-wrap #}
+</div>
+
+{# ══════════════════════════════════════════════════════
+ORDERS TABLE
+══════════════════════════════════════════════════════ #}
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">
+      Order Details
+      <span class="count-chip" id="order-count">{{ orders | length }}</span>
+    </h2>
+    <div class="toolbar">
+      <input type="text" class="search-box" placeholder="🔍  Search orders…"
+        oninput="liveFilter('orders-tbody', this.value)" />
+      <select class="filter-select" id="status-filter" onchange="filterByStatus(this.value)">
+        <option value="">All Statuses</option>
+        <option>Pending</option>
+        <option>Processing</option>
+        <option>Completed</option>
+        <option>Delivered</option>
+      </select>
+      <select class="filter-select" onchange="filterByCol('orders-tbody', 7, this.value)">
+        <option value="">All Fabrics</option>
+        <option>Regular</option>
+        <option>Delicate</option>
+        <option>Unknown</option>
+      </select>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="alert-error"><span>⚠</span> {{ error }}</div>
+  {% endif %}
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Order ID</th>
+          <th>Student</th>
+          <th>Block</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>Clothes</th>
+          <th>Cloth Type / Color</th>
+          <th>Fabric</th>
+        </tr>
+      </thead>
+      <tbody id="orders-tbody">
+        {% if orders %}
+        {% for o in orders %}
+        <tr data-status="{{ o.OrderStatus }}">
+          <td class="mono dim">ORD-{{ o.OrderID }}</td>
+          <td><strong>{{ o.StudentName }}</strong></td>
+          <td><span class="block-chip">{{ o.HostelBlock }}</span></td>
+          <td>
+            <select class="ord-status-select ord-status-{{ o.OrderStatus | lower }}" data-order-id="{{ o.OrderID }}"
+              onchange="updateOrderStatus(this)">
+              {% for opt in ['Pending','Processing','Completed','Delivered'] %}
+              <option value="{{ opt }}" {% if o.OrderStatus==opt %}selected{% endif %}>
+                {{ {'Pending':'⏳','Processing':'🔄','Completed':'✅','Delivered':'📦'}[opt] }}
+                {{ opt }}
+              </option>
+              {% endfor %}
+            </select>
+          </td>
+          <td class="dim">{{ o.OrderDate }}</td>
+          <td>
+            <div class="clothes-cell">
+              <span class="clothes-count">{{ o.TotalClothes }}</span>
+              <div class="clothes-bar">
+                <div class="clothes-fill" style="width:{{ [o.TotalClothes * 4, 100] | min }}%"></div>
+              </div>
+            </div>
+          </td>
+          <td>
+            {% if o.ClothType %}
+            <span class="cloth-type">{{ o.ClothType }}</span>
+            {% if o.Color %}
+            <span class="color-dot" style="background:{{ o.Color | lower }}" title="{{ o.Color }}"></span>
+            <span class="dim" style="font-size:12px">{{ o.Color }}</span>
+            {% endif %}
+            {% else %}
+            <span class="dim">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if o.FabricType == 'Regular' %}
+            <span class="fabric-chip fabric-regular">🌀 Regular</span>
+            {% elif o.FabricType == 'Delicate' %}
+            <span class="fabric-chip fabric-delicate">✨ Delicate</span>
+            {% else %}
+            <span class="fabric-chip fabric-unknown">— Unknown</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% else %}
+        <tr>
+          <td colspan="8" class="empty-row">No orders found.</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Toast ─────────────────────────────────────────────────────────────────── #}
+<div id="ord-toast"></div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<style>
+  /* ════════════════════════════════════════════════════════════
+   CREATE ORDER FORM — scoped styles
+════════════════════════════════════════════════════════════ */
+
+  /* header accent icon */
+  .of-hd-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: .35rem;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #f97316, #dc2626);
+    color: #fff;
+    font-size: .85rem;
+    font-weight: 700;
+  }
+
+  /* toggle button */
+  .of-toggle-btn {
+    background: transparent;
+    border: 1.5px solid var(--border, #e2e8f0);
+    color: var(--text-muted, #64748b);
+    border-radius: .375rem;
+    padding: .3rem .75rem;
+    cursor: pointer;
+    font-size: .78rem;
+    font-weight: 600;
+    transition: background .15s, color .15s;
+  }
+
+  .of-toggle-btn:hover {
+    background: var(--bg-alt, #f8fafc);
+    color: var(--text, #1e293b);
+  }
+
+  /* 4-column responsive grid */
+  .of-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .7rem 1rem;
+  }
+
+  @media (max-width: 960px) {
+    .of-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .of-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* date row below grid */
+  .of-date-row {
+    margin-top: .75rem;
+    max-width: 240px;
+  }
+
+  .of-field {
+    display: flex;
+    flex-direction: column;
+    gap: .28rem;
+  }
+
+  .of-label {
+    font-size: .74rem;
+    font-weight: 700;
+    color: var(--text-muted, #64748b);
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+  }
+
+  .of-icon {
+    font-size: .82rem;
+  }
+
+  .of-req {
+    color: #dc2626;
+    margin-left: .1rem;
+  }
+
+  /* inputs */
+  .of-input {
+    width: 100%;
+    padding: .55rem .75rem;
+    border: 1.5px solid var(--border, #e2e8f0);
+    border-radius: .425rem;
+    background: var(--bg, #fff);
+    color: var(--text, #1e293b);
+    font-size: .875rem;
+    font-family: inherit;
+    transition: border-color .18s, box-shadow .18s;
+    outline: none;
+    box-sizing: border-box;
+  }
+
+  .of-input:focus {
+    border-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, .14);
+  }
+
+  .of-input[type="number"]::-webkit-inner-spin-button {
+    opacity: .6;
+  }
+
+  .of-readonly {
+    background: var(--bg-alt, #f8fafc) !important;
+    color: var(--text-muted, #64748b) !important;
+    cursor: not-allowed;
+  }
+
+  /* custom select arrow */
+  .of-select-wrap {
+    position: relative;
+  }
+
+  .of-select-wrap select.of-input {
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right .65rem center;
+    padding-right: 1.8rem;
+  }
+
+  /* action buttons */
+  .of-actions {
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .of-btn-submit {
+    padding: .6rem 1.4rem;
+    border: none;
+    border-radius: .45rem;
+    cursor: pointer;
+    font-size: .875rem;
+    font-weight: 700;
+    letter-spacing: .01em;
+    font-family: inherit;
+    background: linear-gradient(135deg, #f97316 0%, #dc2626 100%);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, .35);
+    transition: opacity .18s, transform .12s, box-shadow .18s;
+  }
+
+  .of-btn-submit:hover {
+    opacity: .9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(249, 115, 22, .4);
+  }
+
+  .of-btn-submit:active {
+    transform: translateY(0);
+  }
+
+  .of-btn-submit:disabled {
+    opacity: .6;
+    cursor: wait;
+    transform: none;
+  }
+
+  .of-btn-clear {
+    padding: .6rem 1.1rem;
+    border-radius: .45rem;
+    cursor: pointer;
+    font-size: .85rem;
+    font-weight: 600;
+    font-family: inherit;
+    background: transparent;
+    border: 1.5px solid var(--border, #e2e8f0);
+    color: var(--text-muted, #64748b);
+    transition: background .15s, color .15s, border-color .15s;
+  }
+
+  .of-btn-clear:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+  }
+
+  /* field errors */
+  .field-error {
+    font-size: .74rem;
+    color: #dc2626;
+    min-height: .9rem;
+    font-weight: 500;
+  }
+
+  /* ════════════════════════════════════════════════════════════
+   STATUS DROPDOWN IN TABLE (unchanged from previous version)
+════════════════════════════════════════════════════════════ */
+  #ord-toast {
+    position: fixed;
+    bottom: 1.6rem;
+    right: 1.6rem;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    gap: .5rem;
+    padding: .65rem 1.15rem;
+    border-radius: .45rem;
+    font-size: .83rem;
+    font-weight: 600;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, .13);
+    transition: opacity .3s ease;
+    pointer-events: none;
+  }
+
+  .ord-status-select {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1.5px solid transparent;
+    border-radius: .4rem;
+    padding: .28rem .48rem .28rem .44rem;
+    font-size: .78rem;
+    font-weight: 700;
+    cursor: pointer;
+    outline: none;
+    min-width: 122px;
+    transition: background .18s, color .18s, border-color .18s, box-shadow .18s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M0 0l4.5 5L9 0z' fill='%23888'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right .4rem center;
+    padding-right: 1.3rem;
+    font-family: inherit;
+  }
+
+  .ord-status-select:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, .18);
+  }
+
+  .ord-status-select:disabled {
+    opacity: .55;
+    cursor: wait;
+  }
+
+  .ord-status-select.ord-status-pending {
+    background-color: #fef3c7;
+    color: #b45309;
+    border-color: #fcd34d;
+  }
+
+  .ord-status-select.ord-status-processing {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    border-color: #93c5fd;
+  }
+
+  .ord-status-select.ord-status-completed {
+    background-color: #dcfce7;
+    color: #15803d;
+    border-color: #86efac;
+  }
+
+  .ord-status-select.ord-status-delivered {
+    background-color: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+  }
+</style>
+
+<script>
+  "use strict";
+
+  /* ════════════════════════════════════════════════════════
+     BOOT — set date + load dropdowns
+  ════════════════════════════════════════════════════════ */
+  (function boot() {
+    // Auto-fill today's date
+    const today = new Date().toLocaleDateString("en-CA");
+    const dateEl = document.getElementById("of-date");
+    if (dateEl) dateEl.value = today;
+
+    // Load students + staff in parallel
+    Promise.all([
+      fetch("/api/students").then(r => r.json()),
+      fetch("/api/staff").then(r => r.json())
+    ]).then(([sData, stData]) => {
+
+      // ── Debug: inspect raw API responses in the browser console ──
+      console.log("[students API]", sData);
+      console.log("[staff API]", stData);
+
+      if (sData.success) {
+        populateSelect("of-student", sData.students,
+          s => ({ value: s.StudentID, label: `${s.Name} — ${s.RegisterNumber}` }));
+      } else {
+        console.error("Students API error:", sData.message);
+      }
+
+      if (stData.success) {
+        populateSelect("of-staff", stData.staff,
+          s => ({ value: s.StaffID, label: s.Name }));
+      } else {
+        console.error("Staff API error:", stData.message);
+      }
+
+    }).catch(err => {
+      console.error("Boot fetch failed:", err);
+    });
+  })();
+
+  function populateSelect(id, items, mapper) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    items.forEach(item => {
+      const { value, label } = mapper(item);
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = label;
+      sel.appendChild(opt);
+    });
+  }
+
+  /* ════════════════════════════════════════════════════════
+     SUBMIT ORDER
+  ════════════════════════════════════════════════════════ */
+  async function submitOrder() {
+    clearAllOfErrors();
+
+    const studentId = document.getElementById("of-student").value;
+    const staffId = document.getElementById("of-staff").value;
+    const clothes = document.getElementById("of-clothes").value.trim();
+    const status = document.getElementById("of-status").value;
+    const clothType = document.getElementById("of-cloth-type").value;
+    const color = document.getElementById("of-color").value;       // optional
+    const fabricType = document.getElementById("of-fabric").value;
+
+    let valid = true;
+    if (!studentId) { showErr("err-of-student", "Please select a student."); valid = false; }
+    if (!staffId) { showErr("err-of-staff", "Please select a shift."); valid = false; }
+    if (!clothes || +clothes < 1) {
+      showErr("err-of-clothes", "Enter a valid number ≥ 1."); valid = false;
+    }
+    if (!clothType) { showErr("err-of-cloth-type", "Please select a cloth type."); valid = false; }
+    if (!fabricType) { showErr("err-of-fabric", "Please select a fabric type."); valid = false; }
+    if (!valid) return;
+
+    setOfLoading(true);
+    try {
+      const res = await fetch("/api/orders/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          student_id: studentId,
+          staff_id: staffId,
+          total_clothes: parseInt(clothes, 10),
+          status,
+          cloth_type: clothType,
+          color: color || null,   // send null if not chosen
+          fabric_type: fabricType,
+        }),
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        showOrdToast("success", "✅  Order created successfully!");
+        resetOrderForm();
+        await refreshOrderTable();
+      } else {
+        showOrdToast("error", json.message || "Failed to create order.");
+      }
+    } catch (_) {
+      showOrdToast("error", "Network error. Please try again.");
+    } finally {
+      setOfLoading(false);
+    }
+  }
+
+  function resetOrderForm() {
+    document.getElementById("of-student").value = "";
+    document.getElementById("of-staff").value = "";
+    document.getElementById("of-clothes").value = "";
+    document.getElementById("of-status").value = "Pending";
+    document.getElementById("of-cloth-type").value = "";
+    document.getElementById("of-color").value = "";
+    document.getElementById("of-fabric").value = "";
+    clearAllOfErrors();
+  }
+
+  /* ════════════════════════════════════════════════════════
+     REFRESH TABLE
+  ════════════════════════════════════════════════════════ */
+  async function refreshOrderTable() {
+    try {
+      const res = await fetch("/api/orders");
+      const json = await res.json();
+      if (!json.success) return;
+
+      const tbody = document.getElementById("orders-tbody");
+      tbody.innerHTML = "";
+
+      if (!json.orders.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="empty-row">No orders found.</td></tr>`;
+        updatePillsFromDOM();
+        return;
+      }
+
+      json.orders.forEach(o => {
+        const stLow = (o.OrderStatus || "pending").toLowerCase();
+        const icons = { pending: "⏳", processing: "🔄", completed: "✅", delivered: "📦" };
+        const barPct = Math.min((o.TotalClothes || 0) * 4, 100);
+
+        // Cloth type / color cell
+        let clothCell = `<span class="dim">—</span>`;
+        if (o.ClothType) {
+          clothCell = `<span class="cloth-type">${escHtml(o.ClothType)}</span>`;
+          if (o.Color) {
+            clothCell += ` <span class="color-dot"
+                            style="background:${escHtml(o.Color.toLowerCase())}"
+                            title="${escHtml(o.Color)}"></span>
+                         <span class="dim" style="font-size:12px">${escHtml(o.Color)}</span>`;
+          }
+        }
+
+        // Fabric cell
+        const fabricMap = {
+          Regular: `<span class="fabric-chip fabric-regular">🌀 Regular</span>`,
+          Delicate: `<span class="fabric-chip fabric-delicate">✨ Delicate</span>`,
+        };
+        const fabricCell = fabricMap[o.FabricType]
+          || `<span class="fabric-chip fabric-unknown">— Unknown</span>`;
+
+        // Status options
+        const statusOpts = ["Pending", "Processing", "Completed", "Delivered"].map(opt =>
+          `<option value="${opt}" ${o.OrderStatus === opt ? "selected" : ""}>${icons[opt.toLowerCase()]} ${opt}</option>`
+        ).join("");
+
+        const tr = document.createElement("tr");
+        tr.dataset.status = o.OrderStatus;
+        tr.className = "row-new";
+        tr.innerHTML = `
+        <td class="mono dim">ORD-${o.OrderID}</td>
+        <td><strong>${escHtml(o.StudentName)}</strong></td>
+        <td><span class="block-chip">${escHtml(o.HostelBlock || "")}</span></td>
+        <td>
+          <select class="ord-status-select ord-status-${stLow}"
+                  data-order-id="${o.OrderID}"
+                  onchange="updateOrderStatus(this)">
+            ${statusOpts}
+          </select>
+        </td>
+        <td class="dim">${o.OrderDate || ""}</td>
+        <td>
+          <div class="clothes-cell">
+            <span class="clothes-count">${o.TotalClothes}</span>
+            <div class="clothes-bar">
+              <div class="clothes-fill" style="width:${barPct}%"></div>
+            </div>
+          </div>
+        </td>
+        <td>${clothCell}</td>
+        <td>${fabricCell}</td>`;
+        tbody.appendChild(tr);
+        setTimeout(() => tr.classList.remove("row-new"), 1500);
+      });
+
+      const chip = document.getElementById("order-count");
+      if (chip) chip.textContent = json.orders.length;
+
+      updatePillsFromDOM();
+
+      // Re-apply active filter
+      const f = document.getElementById("status-filter").value;
+      if (f) filterByStatus(f);
+
+    } catch (_) { /* silent */ }
+  }
+
+  /* ════════════════════════════════════════════════════════
+     UPDATE ORDER STATUS (existing feature — unchanged)
+  ════════════════════════════════════════════════════════ */
+  async function updateOrderStatus(selectEl) {
+    const orderId = selectEl.dataset.orderId;
+    const newStatus = selectEl.value;
+    const row = selectEl.closest("tr");
+
+    applyOrderStatusClass(selectEl, newStatus);
+    selectEl.disabled = true;
+
+    try {
+      const res = await fetch("/api/orders/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: orderId, status: newStatus }),
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        row.dataset.status = newStatus;
+        updatePillsFromDOM();
+        showOrdToast("success", `ORD-${orderId} → ${newStatus}`);
+      } else {
+        showOrdToast("error", json.message || "Update failed.");
+      }
+    } catch (_) {
+      showOrdToast("error", "Network error. Please try again.");
+    } finally {
+      selectEl.disabled = false;
+    }
+  }
+
+  function applyOrderStatusClass(el, status) {
+    el.className = "ord-status-select ord-status-" + status.toLowerCase().replace(/ /g, "-");
+  }
+
+  /* ════════════════════════════════════════════════════════
+     RIBBON PILL RECOUNT
+  ════════════════════════════════════════════════════════ */
+  function updatePillsFromDOM() {
+    const counts = { pending: 0, processing: 0, completed: 0, delivered: 0 };
+    let total = 0;
+    document.querySelectorAll("#orders-tbody tr[data-status]").forEach(r => {
+      const key = (r.dataset.status || "").toLowerCase();
+      if (key in counts) { counts[key]++; total++; }
+    });
+    for (const [k, v] of Object.entries(counts)) {
+      const el = document.getElementById(`pill-${k}`);
+      if (el) el.textContent = v;
+    }
+    const tot = document.getElementById("pill-total");
+    if (tot) tot.textContent = total;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     FORM HELPERS
+  ════════════════════════════════════════════════════════ */
+  function resetOrderForm() {
+    document.getElementById("of-student").value = "";
+    document.getElementById("of-staff").value = "";
+    document.getElementById("of-clothes").value = "";
+    document.getElementById("of-status").value = "Pending";
+    clearAllOfErrors();
+  }
+
+  function toggleOrderForm() {
+    const wrap = document.getElementById("of-form-wrap");
+    const label = document.getElementById("of-toggle-label");
+    const hidden = wrap.style.display === "none";
+    wrap.style.display = hidden ? "" : "none";
+    label.textContent = hidden ? "Hide Form" : "Show Form";
+  }
+
+  function setOfLoading(on) {
+    const btn = document.getElementById("of-submit-btn");
+    const txt = document.getElementById("of-btn-text");
+    const spin = document.getElementById("of-btn-spinner");
+    btn.disabled = on;
+    txt.classList.toggle("hidden", on);
+    spin.classList.toggle("hidden", !on);
+  }
+
+  function showErr(id, msg) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = msg;
+  }
+  function clearErr(id) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = "";
+  }
+  function clearAllOfErrors() {
+    ["err-of-student", "err-of-staff", "err-of-clothes"].forEach(clearErr);
+  }
+
+  /* ════════════════════════════════════════════════════════
+     TOAST
+  ════════════════════════════════════════════════════════ */
+  function showOrdToast(type, msg) {
+    const t = document.getElementById("ord-toast");
+    const s = type === "success"
+      ? { bg: "#dcfce7", color: "#15803d" }
+      : { bg: "#fee2e2", color: "#b91c1c" };
+    t.style.background = s.bg;
+    t.style.color = s.color;
+    t.textContent = msg;
+    t.style.display = "flex";
+    t.style.opacity = "1";
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => {
+      t.style.opacity = "0";
+      setTimeout(() => { t.style.display = "none"; }, 320);
+    }, 3200);
+  }
+
+  /* ════════════════════════════════════════════════════════
+     SEARCH & FILTER
+  ════════════════════════════════════════════════════════ */
+  function liveFilter(tbodyId, q) {
+    q = q.toLowerCase();
+    let n = 0;
+    document.querySelectorAll(`#${tbodyId} tr`).forEach(r => {
+      const show = r.textContent.toLowerCase().includes(q);
+      r.style.display = show ? "" : "none";
+      if (show) n++;
+    });
+    const chip = document.getElementById("order-count");
+    if (chip) chip.textContent = n;
+  }
+
+  function filterByStatus(val) {
+    document.querySelectorAll("#orders-tbody tr").forEach(r => {
+      if (!val) { r.style.display = ""; return; }
+      r.style.display = (r.dataset.status === val) ? "" : "none";
+    });
+  }
+
+  function filterByCol(tbodyId, colIdx, val) {
+    document.querySelectorAll(`#${tbodyId} tr`).forEach(r => {
+      if (!val) { r.style.display = ""; return; }
+      const cell = r.cells[colIdx];
+      r.style.display = (cell && cell.textContent.trim().includes(val)) ? "" : "none";
+    });
+  }
+
+  /* ════════════════════════════════════════════════════════
+     XSS GUARD
+  ════════════════════════════════════════════════════════ */
+  function escHtml(str) {
+    return String(str ?? "")
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+</script>
+{% endblock %}
