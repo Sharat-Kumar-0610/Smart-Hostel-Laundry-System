@@ -114,7 +114,8 @@ http://localhost:5000
 
 📸 Screenshots
 
-(Add screenshots of dashboard, orders, payments, complaints here)
+Check LinkedIn for Screenshots....
+
 
 ---
 
